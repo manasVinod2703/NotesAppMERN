@@ -1,6 +1,20 @@
 import User from "../models/user.js";
 import bcrypt from "bcryptjs"
 import jwt from 'jsonwebtoken'
+import nodemailer from 'nodemailer'
+import httpstatuscodes from 'http-status-codes'
+
+
+//setting up nodemailer
+var transporter = nodemailer.createTransport({
+    service : 'gmail',
+    auth : {
+        user : 'manas76kulkarni@gmail.com',
+        pass : 'eqfx zfyh tojm ajrs'
+    }
+})
+
+
 
 
 
@@ -18,13 +32,15 @@ export const register = async(req,res)=>{
     try{
 
         if(!name || !email || !password){
-            res.status(400).json({
-                status : "Failed",
-                message : "Please Provide all the credentials",
-                data : null
-            })
+            // res.status(400).json({
+            //     status : "Failed",
+            //     message : "Please Provide all the credentials",
+            //     data : null
+            // })
 
-            return;
+            throw new Error("Please Provide all the credentials");
+
+            //return;
         }
 
 
@@ -33,13 +49,16 @@ export const register = async(req,res)=>{
         const user = await User.findOne({email});
 
         if(user){
-            res.status(400).json({
-                status : "Failed",
-                message : "User with the provided email already exists!",
-                data : null
-            })
+            // res.status(400).json({
+            //     status : "Failed",
+            //     message : "User with the provided email already exists!",
+            //     data : null
+            // })
+
+
+            throw new Error("The user already exists!");
             
-            return;
+            //return;
         }
 
         
@@ -56,15 +75,30 @@ export const register = async(req,res)=>{
         const token = jwt.sign({id:newuser.id,email:newuser.email},'WtLS8SFmMr',{expiresIn : '2h'});
 
 
-        //return the success status
-        res.status(201).json({
-            status : "Success",
-            message : "New user created successfully",
-            data : {
-                user : newuser,
-                token
+        //send the email
+        const mailoptions = {
+            from : 'manas76kulkarni@gmail.com',
+            to : newuser.email,
+            subject : 'Registration to NotesStore',
+            text : `Thankyou ${newuser.name} for registering with NotesTask, hope it helps you to increase productivity!`
+        }
+
+         transporter.sendMail(mailoptions,(err,info)=>{
+            if(err){
+                console.log(err.message);
             }
-        })
+            res.status(201).json({
+                status : "Success",
+                message : "New user created successfully and mail sent",
+                data : {
+                    user : newuser,
+                    token
+                }
+            })
+
+         })
+        //return the success status
+        
 
 
 
@@ -74,13 +108,11 @@ export const register = async(req,res)=>{
 
 
     }catch(err){
-        console.log(err.message)
-       res.status(err.status).json({
-        status : "Failed",
-        message : err.message,
-        data : null
-       })
-    }
+        console.log(err.message);
+        res.status(httpstatuscodes.UNAUTHORIZED).json({
+            message : err.message
+        })
+    } 
 }
 
 export const login = async(req,res)=>{
